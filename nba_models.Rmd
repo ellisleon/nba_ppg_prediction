@@ -42,7 +42,7 @@ nbatest$starter = nbatest$GS/nbatest$G
 ## Train and Split
 
 ```{r}
-train <- nba %>% sample_frac(0.8)
+train <- nba %>% sample_frac(0.7)
 test <- nba %>% anti_join(train)
 ```
 
@@ -202,14 +202,14 @@ mseforest = mean(sq_errorforest)
 
 ```
 
-### OLS (lowest MSE)
+### OLS (lowest Train MSE)
 
 ```{r}
 model = lm(log(PTS+1) ~ starter + MP+ TOV + DRB + FG. + X3P. + X2P., data=train)
 ```
 
 ```{r}
-error = train$PTS - exp(predict(model, train))
+error = train$PTS - exp(predict(model, train))-1
 
 mse = round(mean(error^2),3)
 rmse = round(sqrt(mse),3)
@@ -217,7 +217,7 @@ paste0("Train MSE: ", mse)
 paste0("Train RMSE: ", rmse)
 
 
-testerror = test$PTS - exp(predict(model, test))
+testerror = test$PTS - exp(predict(model, test))-1
 
 testmse = round(mean(testerror^2),3)
 testrmse = round(sqrt(testmse),3)
@@ -231,14 +231,14 @@ test$p1 = exp(predict(model, test))
 vif(model)
 ```
 
-### OLS Testing
+### OLS (lowest Test MSE)
 
 ```{r}
 model = lm(log(PTS+1) ~ starter + MP + TOV + DRB + X3P. + X2P., data=train)
 ```
 
 ```{r}
-error = train$PTS - exp(predict(model, train))
+error = train$PTS - exp(predict(model, train))-1
 
 mse = round(mean(error^2),3)
 rmse = round(sqrt(mse),3)
@@ -246,7 +246,7 @@ paste0("Train MSE: ", mse)
 paste0("Train RMSE: ", rmse)
 
 
-testerror = test$PTS - exp(predict(model, test))
+testerror = test$PTS - exp(predict(model, test))-1
 
 testmse = round(mean(testerror^2),3)
 testrmse = round(sqrt(testmse),3)
@@ -254,8 +254,7 @@ paste0("Test MSE: ", testmse)
 paste0("Test RMSE: ", testrmse)
 
 
-train$p1 = exp(predict(model, train))
-test$p1 = exp(predict(model, test))
+nbatest$p1 = exp(predict(model, nbatest))-1
 
 vif(model)
 ```
