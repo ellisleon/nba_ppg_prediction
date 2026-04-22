@@ -1,0 +1,261 @@
+---
+title: "NBA Models"
+author: "Leon Ellis"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Datasets
+
+```{r}
+nba = read.csv("nba_ppg_train.csv")
+nbatest = read.csv("nba_ppg_test.csv")
+```
+
+## Libraries
+
+```{r}
+library(car) # for vif
+library(nnet) # for multinom
+library(mgcv) # for gam
+library(randomForest) # random forest
+```
+
+## Seed
+
+```{r}
+set.seed(1234)
+```
+
+## New Variables
+
+```{r}
+# what percent of their games a player starts in
+nba$starter = nba$GS/nba$G
+nbatest$starter = nbatest$GS/nbatest$G
+```
+
+## Train and Split
+
+```{r}
+train <- nba %>% sample_frac(0.8)
+test <- nba %>% anti_join(train)
+```
+
+## Models
+
+### Model 1. OLS on Starter, MP, TOV
+
+```{r}
+model = lm(PTS ~ starter + MP + TOV + DRB, data=nba)
+```
+
+```{r}
+error = nba$PTS - predict(model, nba)
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mean(error^2)),3)
+paste0("MSE: ", mse)
+paste0("RMSE: ", rmse)
+
+print("VIF:")
+vif(model)
+```
+
+Low RMSE, but mild collinearity.
+
+### Model 2. OLS on Starter, TOV
+
+```{r}
+model = lm(PTS ~ starter + TOV, data=nba)
+```
+
+```{r}
+error = nba$PTS - predict(model, nba)
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mean(error^2)),3)
+paste0("MSE: ", mse)
+paste0("RMSE: ", rmse)
+
+print("VIF:")
+vif(model)
+```
+
+### Model 3. OLS on Starter, TOV, log(MP)
+
+```{r}
+model = lm(PTS ~ starter + log(MP) + TOV, data=nba)
+```
+
+```{r}
+error = nba$PTS - predict(model, nba)
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mean(error^2)),3)
+paste0("MSE: ", mse)
+paste0("RMSE: ", rmse)
+
+print("VIF:")
+vif(model)
+```
+
+### Model 4. log(PTS+1) OLS on Starter, TOV, MP, GS
+
+```{r}
+model = lm(log(PTS+1) ~ MP + TOV + GS, data=nba)
+```
+
+```{r}
+error = nba$PTS - exp(predict(model, nba))
+
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mse),3)
+paste0("MSE: ", mse)
+paste0("RMSE: ", rmse)
+
+print("VIF:")
+vif(model)
+```
+
+### Model 5. 
+
+```{r}
+model = lm(log(PTS+1) ~ MP + TOV + GS + DRB, data=nba)
+```
+
+```{r}
+error = nba$PTS - exp(predict(model, nba))
+
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mse),3)
+paste0("MSE: ", mse)
+paste0("RMSE: ", rmse)
+
+print("VIF:")
+vif(model)
+```
+
+### GAM Model with GS
+
+```{r}
+gam_model = gam(PTS ~ s(GS) + s(TOV) +s(MP)+s(DRB), data=train)
+```
+
+```{r}
+error = train$PTS - predict(gam_model, train)
+
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mse),3)
+paste0("Train MSE: ", mse)
+#paste0("RMSE: ", rmse)
+
+testerror = test$PTS - predict(gam_model, test)
+
+testmse = round(mean(testerror^2),3)
+testrmse = round(sqrt(testmse),3)
+paste0("Test MSE: ", testmse)
+
+#print("VIF:")
+#vif(gam_model)
+
+#train$gam = predict(gam_model, train)
+```
+
+### GAM with starter
+
+```{r}
+gam_model = gam(PTS ~ s(starter) + s(TOV) +s(MP)+s(DRB), data=train)
+```
+
+```{r}
+error = train$PTS - predict(gam_model, train)
+
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mse),3)
+paste0("Train MSE: ", mse)
+paste0("Train RMSE: ", rmse)
+
+testerror = test$PTS - predict(gam_model, test)
+
+testmse = round(mean(testerror^2),3)
+testrmse = round(sqrt(testmse),3)
+paste0("Test MSE: ", testmse)
+paste0("Test RMSE: ", testrmse)
+
+vif(gam_model)
+```
+
+### Random Forest
+
+```{r}
+forest<- randomForest(PTS~ MP + FG. + X3P. + X2P. + DRB + GS, data=train, ntree=500, importance=TRUE)
+
+summary(forest)
+
+train$forest= predict(forest, train)
+
+errorforest = train$PTS - predict(forest, train)
+sq_errorforest = errorforest^2
+mseforest = mean(sq_errorforest)
+
+```
+
+### OLS (lowest MSE)
+
+```{r}
+model = lm(log(PTS+1) ~ starter + MP+ TOV + DRB + FG. + X3P. + X2P., data=train)
+```
+
+```{r}
+error = train$PTS - exp(predict(model, train))
+
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mse),3)
+paste0("Train MSE: ", mse)
+paste0("Train RMSE: ", rmse)
+
+
+testerror = test$PTS - exp(predict(model, test))
+
+testmse = round(mean(testerror^2),3)
+testrmse = round(sqrt(testmse),3)
+paste0("Test MSE: ", testmse)
+paste0("Test RMSE: ", testrmse)
+
+
+train$p1 = exp(predict(model, train))
+test$p1 = exp(predict(model, test))
+
+vif(model)
+```
+
+### OLS Testing
+
+```{r}
+model = lm(log(PTS+1) ~ starter + MP + TOV + DRB + X3P. + X2P., data=train)
+```
+
+```{r}
+error = train$PTS - exp(predict(model, train))
+
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mse),3)
+paste0("Train MSE: ", mse)
+paste0("Train RMSE: ", rmse)
+
+
+testerror = test$PTS - exp(predict(model, test))
+
+testmse = round(mean(testerror^2),3)
+testrmse = round(sqrt(testmse),3)
+paste0("Test MSE: ", testmse)
+paste0("Test RMSE: ", testrmse)
+
+
+train$p1 = exp(predict(model, train))
+test$p1 = exp(predict(model, test))
+
+vif(model)
+```
