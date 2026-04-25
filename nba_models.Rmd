@@ -19,6 +19,7 @@ nbatest = read.csv("nba_ppg_test.csv")
 ## Libraries
 
 ```{r}
+library(dplyr)
 library(car) # for vif
 library(nnet) # for multinom
 library(mgcv) # for gam
@@ -28,7 +29,7 @@ library(randomForest) # random forest
 ## Seed
 
 ```{r}
-set.seed(1234)
+set.seed(3)
 ```
 
 ## New Variables
@@ -119,7 +120,7 @@ print("VIF:")
 vif(model)
 ```
 
-### Model 5. 
+### Model 5.
 
 ```{r}
 model = lm(log(PTS+1) ~ MP + TOV + GS + DRB, data=nba)
@@ -256,5 +257,39 @@ paste0("Test RMSE: ", testrmse)
 
 nbatest$p1 = exp(predict(model, nbatest))-1
 
+nba$p1 = exp(predict(model, nba))-1
+
 vif(model)
+
+#plot(model)
+```
+
+```{r}
+model <- randomForest(PTS~ MP + FG. + X3P. + X2P. + DRB + starter, data=train, ntree=500, importance=TRUE)
+```
+
+```{r}
+error = train$PTS - predict(model, train)
+
+mse = round(mean(error^2),3)
+rmse = round(sqrt(mse),3)
+paste0("Train MSE: ", mse)
+paste0("Train RMSE: ", rmse)
+
+
+testerror = test$PTS - predict(model, test)
+
+testmse = round(mean(testerror^2),3)
+testrmse = round(sqrt(testmse),3)
+paste0("Test MSE: ", testmse)
+paste0("Test RMSE: ", testrmse)
+
+
+#nbatest$p1 = exp(predict(model, nbatest))-1
+
+#nba$p1 = exp(predict(model, nba))-1
+
+vif(model)
+
+plot(model)
 ```
